@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="How we traced a scene a player saw in Starfield to the plugin records that build it, step by step, and how you can do the same.">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Finding a Starfield Scene</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: dark section rail on the left (house style of DevProcess and the DD), one reading column of pastel
+   section panels; the method is told as a numbered trail because the order of the search is the point. */
+:root {
+  --bg:#f5f6f8; --panel:#ffffff; --text:#1b2130; --muted:#5b6476; --line:#dce0e8; --code-bg:#edf0f5;
+  --accent:#2f56c9;
+  --side:#141925; --side-text:#c9cfdb; --side-muted:#7f889b; --side-hover:#232a3a;
+  --prop-bg:#efe7f8; --prop-fg:#5b2a8c; --pub-bg:#e3eefc; --pub-fg:#1d4f9c;
+  --fork-bg:#fdf0dc; --fork-fg:#8a4b00; --priv-bg:#fbe8ec; --priv-fg:#9a2c45;
+  --new-bg:#e0f3ea; --new-fg:#17694b; --cl-bg:#eceef3; --cl-fg:#4a5265;
+  --sans:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono:ui-monospace, Consolas, monospace;
+  --tint-s: 70%; --tint-l: 95%; --tint-bd-s: 45%; --tint-bd-l: 85%; --tint-th-s: 55%; --tint-th-l: 90%;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#10131a; --panel:#181c25; --text:#e3e7ef; --muted:#9aa3b5; --line:#2c3240; --code-bg:#232836;
+  --accent:#8ea6ff;
+  --side:#0b0e14; --side-text:#aab2c2; --side-muted:#6c7588; --side-hover:#1a1f2b;
+  --prop-bg:#2e2340; --prop-fg:#d3b6f5; --pub-bg:#1f2c45; --pub-fg:#a9c6ff;
+  --fork-bg:#3a2a12; --fork-fg:#f3c27a; --priv-bg:#3a1c25; --priv-fg:#f2a7b8;
+  --new-bg:#163428; --new-fg:#86dcb4; --cl-bg:#232836; --cl-fg:#b4bccc;
+  --tint-s: 28%; --tint-l: 14%; --tint-bd-s: 25%; --tint-bd-l: 24%; --tint-th-s: 25%; --tint-th-l: 20%; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg:#10131a; --panel:#181c25; --text:#e3e7ef; --muted:#9aa3b5; --line:#2c3240; --code-bg:#232836;
+  --accent:#8ea6ff;
+  --side:#0b0e14; --side-text:#aab2c2; --side-muted:#6c7588; --side-hover:#1a1f2b;
+  --prop-bg:#2e2340; --prop-fg:#d3b6f5; --pub-bg:#1f2c45; --pub-fg:#a9c6ff;
+  --fork-bg:#3a2a12; --fork-fg:#f3c27a; --priv-bg:#3a1c25; --priv-fg:#f2a7b8;
+  --new-bg:#163428; --new-fg:#86dcb4; --cl-bg:#232836; --cl-fg:#b4bccc;
+  --tint-s: 28%; --tint-l: 14%; --tint-bd-s: 25%; --tint-bd-l: 24%; --tint-th-s: 25%; --tint-th-l: 20%; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+a { color: var(--accent); }
+.wrap { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+nav.rail { background: var(--side); color: var(--side-text); padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 12px; }
+.rail-inner { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); max-height: calc(100vh - 40px); overflow-y: auto; }
+.rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.rail a { display: block; padding: 4px 8px; border-radius: 4px; color: var(--side-text); text-decoration: none; font-size: 13.5px; line-height: 1.35; }
+.rail a:hover, .rail a:focus-visible { background: var(--side-hover); color: #fff; outline: none; }
+.rail a.active { background: rgba(255,255,255,.12); color: #fff; font-weight: 600; }
+.rail a.edge { box-shadow: inset 4px 0 0 hsl(var(--h) 30% 32%); }
+
+main { padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.col { max-width: 76rem; margin: 0 auto; display: grid; gap: 26px; }
+.intro { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
+.intro h1 { margin: 0; font-size: 34px; line-height: 1.1; letter-spacing: -.01em; text-wrap: balance; }
+.intro p { margin: 0; color: var(--muted); }
+.eyebrow { font: 12.5px/1.3 var(--mono); color: var(--muted); letter-spacing: .02em; }
+.intro .lede { font-size: 16px; }
+.intro .byline { font-size: 14px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.facts b { color: var(--text); font-weight: 600; }
+
+section.s { display: grid; gap: 12px; min-width: 0; scroll-margin-top: 16px; }
+section.s > h3 { margin: 0; font-size: 21px; line-height: 1.3; text-wrap: balance; }
+section.s p { margin: 0; }
+section.cat { background: hsl(var(--h) var(--tint-s) var(--tint-l)); border: 1px solid hsl(var(--h) var(--tint-bd-s) var(--tint-bd-l)); border-radius: 14px; padding: 16px 18px 18px; }
+section.cat > h3 { padding-bottom: 6px; border-bottom: 1px solid hsl(var(--h) var(--tint-bd-s) var(--tint-bd-l)); }
+section.cat th, section.cat td { border-bottom-color: hsl(var(--h) var(--tint-bd-s) var(--tint-bd-l)); }
+section.cat thead th { background: hsl(var(--h) var(--tint-th-s) var(--tint-th-l)); }
+section.cat code, section.cat pre { background: hsl(var(--h) var(--tint-th-s) var(--tint-th-l)); }
+section.cat pre code { background: none; }
+section.s ul, section.s ol { margin: 0; padding-left: 1.25em; display: grid; gap: 6px; }
+li::marker { color: var(--muted); }
+code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+pre { margin: 0; background: var(--code-bg); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
+pre code { background: none; padding: 0; overflow-wrap: normal; font-size: inherit; }
+details summary { cursor: pointer; font-weight: 600; margin: 4px 0 8px; }
+
+.scroll { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 40rem; }
+th, td { text-align: left; padding: 6px 12px 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; white-space: nowrap; }
+tbody th { font-weight: 600; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .03em; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.k-pub { background: var(--pub-bg); color: var(--pub-fg); }
+.k-priv { background: var(--cl-bg); color: var(--cl-fg); }
+.k-bgs { background: var(--prop-bg); color: var(--prop-fg); }
+.v-best { background: var(--new-bg); color: var(--new-fg); }
+.v-maybe { background: var(--fork-bg); color: var(--fork-fg); }
+.v-no { background: var(--priv-bg); color: var(--priv-fg); }
+
+ol.steps { list-style: none; padding: 0; display: grid; gap: 12px; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; display: grid; gap: 6px; min-width: 0; }
+.step .sh { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.step h4 { margin: 0; font-size: 16px; }
+.step .n { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; min-width: 24px; text-align: center; padding: 1px 6px; }
+.step b { color: var(--muted); font-weight: 600; }
+
+figure { margin: 0; }
+.photo { display: grid; gap: 6px; justify-items: start; }
+.photo img { width: 464px; max-width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--line); image-rendering: auto; }
+.photo figcaption, .diagram figcaption { font-size: 13px; color: var(--muted); }
+.diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; min-width: 0; }
+.diagram figcaption { font-weight: 600; color: var(--text); font-size: 14px; }
+.flowsvg svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.flowsvg .b { stroke: var(--line); stroke-width: 1; }
+.b-you { fill: var(--fork-bg); background: var(--fork-bg); }
+.b-claude { fill: var(--cl-bg); background: var(--cl-bg); }
+.b-priv { fill: var(--priv-bg); background: var(--priv-bg); }
+.b-pub { fill: var(--pub-bg); background: var(--pub-bg); }
+.b-bgs { fill: var(--prop-bg); background: var(--prop-bg); }
+.b-new { fill: var(--new-bg); background: var(--new-bg); }
+.flowsvg .bl { font-family: var(--sans); font-size: 13px; fill: var(--text); }
+.flowsvg .bl.strong { font-weight: 700; font-size: 14px; }
+.flowsvg .bt { font-family: var(--mono); font-size: 11px; font-weight: 700; }
+.bt-you { fill: var(--fork-fg); } .bt-claude { fill: var(--cl-fg); } .bt-priv { fill: var(--priv-fg); }
+.bt-pub { fill: var(--pub-fg); } .bt-bgs { fill: var(--prop-fg); } .bt-new { fill: var(--new-fg); }
+.flowsvg .ar { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.flowsvg .ah { fill: var(--muted); }
+.key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); align-items: center; }
+.sw { display: inline-flex; align-items: center; gap: 6px; }
+.sw i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
+footer { color: var(--muted); font-size: 12px; text-align: center; border-top: 1px solid var(--line); padding-top: 14px; }
+
+@media (max-width: 760px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); }
+  nav.rail { padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px; }
+  .rail-inner { position: static; max-height: none; }
+  .rail ul { display: flex; flex-wrap: wrap; gap: 4px; }
+  .intro h1 { font-size: 28px; }
+  section.cat { padding: 14px 12px 16px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <nav class="rail" aria-label="Sections">
+    <div class="rail-inner">
+      <ul>
+<li><a href="#top">Top</a></li>
+<li><a class="edge" style="--h:215" href="#summary">Executive summary</a></li>
+<li><a class="edge" style="--h:35" href="#question">The question</a></li>
+<li><a class="edge" style="--h:265" href="#tools">What we used</a></li>
+<li><a class="edge" style="--h:150" href="#steps">Step by step</a></li>
+<li><a class="edge" style="--h:285" href="#layers">How a small site is built</a></li>
+<li><a class="edge" style="--h:160" href="#results">What we found</a></li>
+<li><a class="edge" style="--h:45" href="#tips">Lessons for the next search</a></li>
+<li><a class="edge" style="--h:190" href="#next">Open questions</a></li>
+<li><a class="edge" style="--h:120" href="#repeat">Run it yourself</a></li>
+      </ul>
+    </div>
+  </nav>
+  <main>
+    <div class="col">
+      <header class="intro" id="top">
+        <p class="eyebrow">Starfield 1.16.244 &middot; Free Lanes update &middot; one search, ten steps &middot; searched 2026-11-13 &middot; page built 2026-11-13 23:50 UTC</p>
+        <h1>Finding where a Starfield scene comes from</h1>
+        <p class="lede">A player saw a small site with people near a grave and flowers and asked whether it came from the Free Lanes update. This page shows, step by step, how we searched the game's plugin files for it, what each step found, and how you can run the same search for any scene you spot in Starfield.</p>
+        <p class="byline">By <a href="https://github.com/taosecurity" target="_blank" rel="noopener">Richard Bejtlich</a>, <a href="https://www.youtube.com/@RichardBejtlich" target="_blank" rel="noopener">Richard Presents Starfield Essentials</a> on YouTube</p>
+        <p class="byline">More Starfield tools and references are on the <a href="https://taosecurity.github.io/">Richard Presents Development Hub</a>.</p>
+        <div class="facts"><span>Game files: <b>Steam Starfield 1.16.244, Free Lanes plugin SFBGS00D.esm (102,054,268 bytes)</b></span><span>Best match: <b>SFFLPOI048, a three-grave site</b></span><span>Status: <b>not yet confirmed in game</b></span></div>
+      </header>
+
+<section class="s cat" id="summary" style="--h:215"><h3>Executive summary</h3><ul><li>Free Lanes adds exactly two grave sites: <code>PIPCMManMade_SFFLPOI048</code> (three graves) and <code>PIPCMManMade_SFFLPOI049</code> (seven graves). These are the only places Free Lanes puts a headstone.</li><li>Both are small procedural sites, so the game drops them at random spots when you land. You can't reach them with a <code>coc</code> command.</li><li>Neither site has people, a kneel marker or flowers in its files. The person kneeling in the player's photo is probably a separate encounter, a companion, the player in photo mode, or something from a mod.</li><li>We ruled out the base game's mourning content: the ID-card delivery mourners, the "Final Thoughts" audio slate, the hunted homesteaders, and the Waggoner Farm cemetery.</li><li>The method works for any scene: search for words, find the objects, list every place that uses them, then look at what sits next to each one.</li></ul><figure class="diagram"><figcaption id="d-method">How we searched: each step narrowed the list of places the scene could come from.</figcaption><div class="scroll flowsvg"><svg viewBox="0 0 1152 246" role="img" aria-labelledby="d-method" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="ah-d-method" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker></defs>
+<rect x="10" y="10" width="250" height="90" rx="8" class="b b-you"/>
+<text x="22" y="32" class="bt bt-you">1  The question</text>
+<text x="22" y="52" class="bl">A player saw people at a grave</text>
+<text x="22" y="68" class="bl">with flowers and asked whether</text>
+<text x="22" y="84" class="bl">Free Lanes adds it.</text>
+<rect x="304" y="10" width="250" height="90" rx="8" class="b b-pub"/>
+<text x="316" y="32" class="bt bt-pub">2  Raw text search</text>
+<text x="316" y="52" class="bl">We searched the plugin bytes for</text>
+<text x="316" y="68" class="bl">words such as grave, memorial and</text>
+<text x="316" y="84" class="bl">mourn.</text>
+<rect x="598" y="10" width="250" height="90" rx="8" class="b b-bgs"/>
+<text x="610" y="32" class="bt bt-bgs">3  xEdit dump</text>
+<text x="610" y="52" class="bl">We read each base-game hit in a</text>
+<text x="610" y="68" class="bl">full dump and ruled out the</text>
+<text x="610" y="84" class="bl">mourning quests.</text>
+<rect x="892" y="10" width="250" height="90" rx="8" class="b b-bgs"/>
+<text x="904" y="32" class="bt bt-bgs">4  Find the parts</text>
+<text x="904" y="52" class="bl">We found the headstone, bouquet</text>
+<text x="904" y="68" class="bl">and kneel objects and wrote down</text>
+<text x="904" y="84" class="bl">their FormIDs.</text>
+<rect x="10" y="146" width="250" height="90" rx="8" class="b b-pub"/>
+<text x="22" y="168" class="bt bt-pub">5  SFSearch</text>
+<text x="22" y="188" class="bl">SFSearch listed every Free Lanes</text>
+<text x="22" y="204" class="bl">record that places one of those</text>
+<text x="22" y="220" class="bl">objects.</text>
+<rect x="304" y="146" width="250" height="90" rx="8" class="b b-claude"/>
+<text x="316" y="168" class="bt bt-claude">6  cellwalk.py</text>
+<text x="316" y="188" class="bl">Our reader showed the cell around</text>
+<text x="316" y="204" class="bl">each placed object and what sits</text>
+<text x="316" y="220" class="bl">next to it.</text>
+<rect x="598" y="146" width="250" height="90" rx="8" class="b b-new"/>
+<text x="610" y="168" class="bt bt-new">7  The answer</text>
+<text x="610" y="188" class="bl">We compared each place with the</text>
+<text x="610" y="204" class="bl">photo. The best match is the</text>
+<text x="610" y="220" class="bl">three-grave site POI048.</text>
+<path d="M260 55.0 H301" class="ar" marker-end="url(#ah-d-method)"/>
+<path d="M554 55.0 H595" class="ar" marker-end="url(#ah-d-method)"/>
+<path d="M848 55.0 H889" class="ar" marker-end="url(#ah-d-method)"/>
+<path d="M1017.0 100 V123.0 H135.0 V143" class="ar" marker-end="url(#ah-d-method)"/>
+<path d="M260 191.0 H301" class="ar" marker-end="url(#ah-d-method)"/>
+<path d="M554 191.0 H595" class="ar" marker-end="url(#ah-d-method)"/>
+</svg></div><div class="key"><span class="sw"><i class="b-you"></i>the question</span><span class="sw"><i class="b-bgs"></i>Bethesda's game files</span><span class="sw"><i class="b-pub"></i>public tools</span><span class="sw"><i class="b-claude"></i>our own small script</span><span class="sw"><i class="b-new"></i>the answer</span></div></figure></section>
+<section class="s cat" id="question" style="--h:35"><h3>The question</h3><p>A player reported a small point of interest (POI) with three people near a grave marker or memorial with flowers, and wondered whether it came from the Free Lanes update. A later screenshot showed one figure in a spacesuit kneeling beside a single headstone, with a small bunch of flowers at its base. The question: which plugin adds this, and what is it called?</p></section>
+<section class="s cat" id="tools" style="--h:265"><h3>What we used</h3><p>Every tool here only reads. None of them changes the game files.</p><div class="scroll"><table><thead><tr><th>Tool</th><th>Kind</th><th>What it is</th><th>Used for</th></tr></thead><tbody><tr><th>Plugin files</th><td><span class="pill k-bgs">Game files</span></td><td>Bethesda's own <code>Starfield.esm</code> and the Free Lanes plugin <code>SFBGS00D.esm</code>, read from the Steam install. Read only, never changed.</td><td>The evidence itself.</td></tr><tr><th>Raw text search</th><td><span class="pill k-pub">Public tool</span></td><td><code>grep -a</code> over the plugin's bytes.</td><td>A fast first pass for names such as <code>grave</code> or <code>mourn</code>. It misses names inside compressed records.</td></tr><tr><th>xEdit dump of Starfield.esm</th><td><span class="pill k-pub">Public tool</span></td><td>A full text dump of every Starfield.esm record, made with xEdit's command-line dumper (xDump).</td><td>Finding base-game objects, quests and dialogue by name. It covers Starfield.esm only, not the add-ons.</td></tr><tr><th>SFSearch</th><td><span class="pill k-pub">Public tool</span></td><td>Krawphish37's read-only Starfield plugin search tool (built on Mutagen).</td><td><code>Live --refs</code> lists every record that places an object; <code>Names</code> turns FormIDs into EditorIDs.</td></tr><tr><th>cellwalk.py</th><td><span class="pill k-priv">Our script</span></td><td>A 130-line Python reader written for this search (source at the end of the page).</td><td>Shows which cell holds a placed object and lists everything else in that cell.</td></tr><tr><th>Web search</th><td><span class="pill k-pub">Public tool</span></td><td>Two searches for player reports of the scene.</td><td>Found nothing, so the files had to answer it.</td></tr></tbody></table></div></section>
+<section class="s cat" id="steps" style="--h:150"><h3>Step by step</h3><ol class="steps"><li class="step"><div class="sh"><span class="n">1</span><h4>Search the Free Lanes plugin for grave words</h4><span class="pill k-pub">Public tool</span></div><p><b>What we did.</b> We searched <code>SFBGS00D.esm</code>'s raw bytes for grave, memorial, funeral, mourn, tomb, burial and flower.</p><p><b>What it showed.</b> Only the Tombstone weapon's parts and one companion comment turned up. A developer note on <code>COM_Event_CommentTrigger_SFFLOETH01_01</code> says the companion remarks on many graves at that site.</p><pre><code>grep -a -o -i -E &quot;[A-Za-z0-9_]*(grave|memorial|mourn|tomb|flower)[A-Za-z0-9_]*&quot; SFBGS00D.esm | sort | uniq -c</code></pre></li><li class="step"><div class="sh"><span class="n">2</span><h4>List Free Lanes' small encounters</h4><span class="pill k-pub">Public tool</span></div><p><b>What we did.</b> We listed the EditorIDs that look like encounter names: <code>SFFLOE..</code> (planet overlay encounters), <code>SFBGS00DDR..</code> and the POIs.</p><p><b>What it showed.</b> Ten SFFLOE encounters turned up. SFFLOETH01 is the graves site. SFFLOETH02 is a colony with a church, "New Babylon", which doesn't match.</p><pre><code>grep -a -o -E &quot;SFFLOE[A-Z]{2}[0-9]{2}&quot; SFBGS00D.esm | sort | uniq -c</code></pre></li><li class="step"><div class="sh"><span class="n">3</span><h4>Look for mourning in the base game</h4><span class="pill k-bgs">Game files</span></div><p><b>What we did.</b> We ran the same word search over Starfield.esm and the small official updates, then read each hit in the dump.</p><p><b>What it showed.</b> Three candidates turned up, and none fits. The mourner NPCs (<code>Mourner</code>, <code>Mourner_UC01</code>, <code>Mourner_Freestar</code>) belong to <code>SE_Derelict_IDCardQuest</code>, an ID-card delivery that takes place in New Atlantis, Akila and Cydonia. <code>RQ_OE_Deliver_01</code> ("Final Thoughts") is a mining-site audio slate delivered to a widow in New Atlantis. <code>OE_HuntedHomesteaders</code> is a defend-the-camp encounter whose "dig graves" line is just dialogue.</p></li><li class="step"><div class="sh"><span class="n">4</span><h4>Find the objects a grave scene would use</h4><span class="pill k-bgs">Game files</span></div><p><b>What we did.</b> We searched the dump for object records named like graves, headstones, memorials, flowers and kneeling.</p><p><b>What it showed.</b> This gave the FormIDs to follow: <code>AK_Cemetery_Tombstone_01</code> (04B20D) and <code>_02</code> (04B20C), the bouquet pack-in <code>Bouquet_A01</code> (32EB16), the memorial easel, and the kneel and mourn markers <code>NPCKneeling</code>, <code>NPCKneelingPraying</code>, <code>NPCKneeling_Planting</code> and <code>NPCStanding_Mourn</code>.</p></li><li class="step"><div class="sh"><span class="n">5</span><h4>List every Free Lanes record that places those objects</h4><span class="pill k-pub">Public tool</span></div><p><b>What we did.</b> For each object we asked SFSearch which records in Starfield.esm and SFBGS00D.esm point at it.</p><p><b>What it showed.</b> Free Lanes places the headstones 4 times, the bouquet 0 times, the mourn marker twice (both inside ships) and kneel markers 23 times.</p><pre><code>SFSearch Live Starfield.esm 04B20D:Starfield.esm --refs --with SFBGS00D.esm --live</code></pre></li><li class="step"><div class="sh"><span class="n">6</span><h4>Find the cell each headstone sits in</h4><span class="pill k-priv">Our script</span></div><p><b>What we did.</b> Placed objects don't say where they are, so cellwalk.py walked the whole plugin and recorded each object's cell.</p><p><b>What it showed.</b> Two headstones sit in an art-asset test cell (<code>SFBGS00DWorldArtAssets</code>). The other two sit at position 0,0,0 inside pack-in storage cells for <code>SFFLPOI048</code> and <code>SFFLPOI049</code>. A position of 0,0,0 is the sign of a pack-in, a prefab group that other places reuse.</p><pre><code>python cellwalk.py SFBGS00D.esm 0106AE51,0106B135 out.json</code></pre></li><li class="step"><div class="sh"><span class="n">7</span><h4>Open every layer of the grave sites</h4><span class="pill k-priv">Our script</span></div><p><b>What we did.</b> We listed the three layers of each site (see the next diagram) and the seven sibling sites, POI041 to POI047.</p><p><b>What it showed.</b> POI048 is three graves in a row, and POI049 is seven. Each grave is a headstone on a concrete slab with a debris pile, plus rocks, shrubs and one small loot item. Neither site has an actor, a marker or flowers. None of POI041 to POI047 has a grave.</p><pre><code>python cellwalk.py SFBGS00D.esm 0106AE51 out.json --cells 0106AE34,0106AE38,0106B130,0106B131</code></pre></li><li class="step"><div class="sh"><span class="n">8</span><h4>Check the kneeling figure</h4><span class="pill k-priv">Our script</span></div><p><b>What we did.</b> The photo shows someone kneeling, so we found the cell of each of the 23 Free Lanes kneel markers.</p><p><b>What it showed.</b> They're all in dungeons, a factory and ship interiors (SFBGS00DDR001, DR009, DR010, DR015, SFFLDR023, SFFLOESM04, SFFLM03). None is near a grave.</p></li><li class="step"><div class="sh"><span class="n">9</span><h4>Check the base game's bouquets and headstones</h4><span class="pill k-bgs">Game files</span></div><p><b>What we did.</b> We ran cellwalk.py over Starfield.esm for the 8 placed bouquets and the 4 placed headstones.</p><p><b>What it showed.</b> The bouquets are in cities and interiors (Akila, New Atlantis Mast, a Generdyne interior). The headstones are all at Waggoner Farm's cemetery on Akila (<code>SettleWaggonerFarmCemetary</code>). Neither is a small random site.</p></li><li class="step"><div class="sh"><span class="n">10</span><h4>Search the web</h4><span class="pill k-pub">Public tool</span></div><p><b>What we did.</b> We ran two web searches for player reports of a grave, flowers and a kneeling NPC.</p><p><b>What it showed.</b> Nothing matched, and the Free Lanes coverage doesn't mention it.</p></li></ol></section>
+<section class="s cat" id="layers" style="--h:285"><h3>How a small site is built</h3><p>Starfield builds a small procedural site out of nested pack-ins. The planet generator places the top layer, and each layer can place copies of the one below. To see everything a player might find, open every layer. Here are the layers of <code>SFFLPOI048</code>:</p><figure class="diagram"><figcaption id="d-layers">How the three-grave site is built: three layers of pack-ins, each placing the one below.</figcaption><div class="scroll flowsvg"><svg viewBox="0 0 1152 110" role="img" aria-labelledby="d-layers" xmlns="http://www.w3.org/2000/svg">
+<defs><marker id="ah-d-layers" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker></defs>
+<rect x="10" y="10" width="250" height="90" rx="8" class="b b-bgs"/>
+<text x="22" y="32" class="bt bt-bgs">PI  top layer</text>
+<text x="22" y="52" class="bl">The planet generator places this</text>
+<text x="22" y="68" class="bl">whole group at a random spot when</text>
+<text x="22" y="84" class="bl">you land.</text>
+<rect x="304" y="10" width="250" height="90" rx="8" class="b b-bgs"/>
+<text x="316" y="32" class="bt bt-bgs">PI  contents</text>
+<text x="316" y="52" class="bl">It adds shrubs, rocks, one loot</text>
+<text x="316" y="68" class="bl">item, three debris piles and three</text>
+<text x="316" y="84" class="bl">copies of the grave group.</text>
+<rect x="598" y="10" width="250" height="90" rx="8" class="b b-bgs"/>
+<text x="610" y="32" class="bt bt-bgs">GPPI  grave group</text>
+<text x="610" y="52" class="bl">Each copy of the grave group holds</text>
+<text x="610" y="68" class="bl">one grave and a pivot marker.</text>
+<rect x="892" y="10" width="250" height="90" rx="8" class="b b-new"/>
+<text x="904" y="32" class="bt bt-new">FPI  one grave</text>
+<text x="904" y="52" class="bl">The grave is an Akila-style</text>
+<text x="904" y="68" class="bl">headstone standing on a concrete</text>
+<text x="904" y="84" class="bl">slab.</text>
+<path d="M260 55.0 H301" class="ar" marker-end="url(#ah-d-layers)"/>
+<path d="M554 55.0 H595" class="ar" marker-end="url(#ah-d-layers)"/>
+<path d="M848 55.0 H889" class="ar" marker-end="url(#ah-d-layers)"/>
+</svg></div></figure><p>The seven-grave site, <code>SFFLPOI049</code>, places the same grave group seven times. The layer names come from the EditorIDs: <code>PIPCMManMade_SFFLPOI048</code>, <code>GPPIPCMManMade_SFFLPOI048</code> and <code>FPIPCMManMade_SFFLPOI048</code>. The grave uses <code>AK_Cemetery_Tombstone_01</code> and <code>StructKit_Concrete_LgBase02</code>, and each grave in the top layer gets a <code>GenDebrisPile04</code>.</p></section>
+<section class="s cat" id="results" style="--h:160"><h3>What we found</h3><div class="scroll"><table><thead><tr><th>Candidate</th><th>Plugin</th><th>What it is</th><th>Verdict</th></tr></thead><tbody><tr><th><code>SFFLPOI048</code></th><td>SFBGS00D.esm</td><td>Three graves in a row: headstone, concrete slab, debris pile. Random site.</td><td><span class="pill v-best">Best match</span> Best match. Free Lanes, small, graves and "three". No people or flowers in the file.</td></tr><tr><th><code>SFFLPOI049</code></th><td>SFBGS00D.esm</td><td>The same grave, seven times. Random site.</td><td><span class="pill v-maybe">Possible</span> Possible, but it's bigger than one grave.</td></tr><tr><th><code>SFFLOETH01</code></th><td>SFBGS00D.esm</td><td>Planet encounter whose companion comment mentions many graves.</td><td><span class="pill v-maybe">Possible</span> Possible graveyard. It uses no headstone object, so its graves are built differently. Not opened yet.</td></tr><tr><th><code>SE_Derelict_IDCardQuest</code></th><td>Starfield.esm</td><td>ID-card delivery with mourner NPCs.</td><td><span class="pill v-no">Ruled out</span> No. It takes place in cities.</td></tr><tr><th><code>RQ_OE_Deliver_01 &quot;Final Thoughts&quot;</code></th><td>Starfield.esm</td><td>Audio slate found at a mining site.</td><td><span class="pill v-no">Ruled out</span> No. The mourner is a widow in New Atlantis.</td></tr><tr><th><code>OE_HuntedHomesteaders</code></th><td>Starfield.esm</td><td>Homesteaders defending a camp from predators.</td><td><span class="pill v-no">Ruled out</span> No.</td></tr><tr><th><code>Waggoner Farm cemetery</code></th><td>Starfield.esm</td><td>Fixed cemetery on Akila.</td><td><span class="pill v-no">Ruled out</span> No. It's a fixed place, not a random site.</td></tr></tbody></table></div><figure class="diagram"><figcaption id="d-compare">The best match explains the grave and the setting, but not the person or the flowers.</figcaption><div class="scroll flowsvg"><svg viewBox="0 0 1080 156" role="img" aria-labelledby="d-compare" xmlns="http://www.w3.org/2000/svg">
+<rect x="10" y="10" width="520" height="136" rx="8" class="b b-new"/>
+<text x="24" y="36" class="bl strong">What POI048 has that the photo shows</text>
+<text x="24" y="62" class="bl">• A single upright headstone in open ground</text>
+<text x="24" y="82" class="bl">• A small site, not a town or a building</text>
+<text x="24" y="102" class="bl">• Three graves, matching &quot;three&quot; in the report</text>
+<text x="24" y="122" class="bl">• It comes from Free Lanes</text>
+<rect x="550" y="10" width="520" height="136" rx="8" class="b b-priv"/>
+<text x="564" y="36" class="bl strong">What the photo shows that POI048 lacks</text>
+<text x="564" y="62" class="bl">• A person kneeling at the grave</text>
+<text x="564" y="82" class="bl">• Flowers at the base of the headstone</text>
+<text x="564" y="102" class="bl">• (Either may come from another encounter,</text>
+<text x="564" y="122" class="bl">•  a companion, photo mode or a mod.)</text>
+</svg></div></figure></section>
+<section class="s cat" id="tips" style="--h:45"><h3>Lessons for the next search</h3><ul><li><b>A raw text search is only a first pass.</b> About 97,000 Starfield.esm records are compressed, and their names don't show up in a byte search. A reader that unpacks them (xEdit, SFSearch, cellwalk.py) sees everything.</li><li><b>Search for the objects, not the scene.</b> A scene has no single record. Find its parts (headstone, flowers, kneel marker), then list every place that uses each part.</li><li><b>A placed object at 0,0,0 is inside a pack-in.</b> Follow the layers up (FPI to GPPI to PI) to the site the planet generator places.</li><li><b>FormIDs inside a file start with the master index.</b> In SFBGS00D.esm, <code>00</code> means Starfield.esm and <code>01</code> means Free Lanes' own records. In-game console IDs differ, because they depend on load order.</li><li><b>The xEdit dump covers one plugin.</b> A Starfield.esm dump can't show what an add-on such as Free Lanes places. Use SFSearch or a reader for the add-on.</li><li><b>SFSearch input formats.</b> <code>Names</code> takes FormIDs (<code>04B20D</code>), not EditorIDs. <code>Live</code> takes a six-digit FormKey such as <code>04B20D:Starfield.esm</code>. Eight digits fail.</li><li><b>Ask about the person in the picture.</b> A kneeling figure could be an NPC, a companion, or the player in photo mode (the game has a <code>PhotoMode_Kneeling</code> pose).</li></ul></section>
+<section class="s cat" id="next" style="--h:190"><h3>Open questions</h3><p>The search ended with a strong lead but no proof. These steps would settle it:</p><ol><li>Ask the player for the planet, the site's name on the map or scanner, whether the kneeling person could be talked to, and whether they use mods.</li><li>If they use mods, run the same object search (headstone, bouquet, kneel markers) over each mod's plugin.</li><li>Open SFFLOETH01's cells with cellwalk.py to see how its graves are built.</li><li>Confirm in game: land on a few planets, using a save without mods, until POI048 or POI049 appears, and see whether anyone turns up there.</li></ol></section>
+<section class="s cat" id="repeat" style="--h:120"><h3>Run it yourself</h3><p>You need a copy of Starfield, Python 3 and, for the reference lookups, <a href="https://github.com/Krawphish37/SFSearch">SFSearch</a>. Run these from any folder. Change the path if your game is not in the default Steam folder.</p><pre><code>set DATA=C:\Program Files (x86)\Steam\steamapps\common\Starfield\Data
+rem 1. Words in the plugin (first pass)
+grep -a -o -i -E &quot;[A-Za-z0-9_]*(grave|memorial|mourn)[A-Za-z0-9_]*&quot; &quot;%DATA%\SFBGS00D.esm&quot; | sort | uniq -c
+rem 2. Which Free Lanes records place the headstone 04B20D
+SFSearch Live Starfield.esm 04B20D:Starfield.esm --refs --with SFBGS00D.esm --live
+rem 3. Which cell holds those records, and what else is in it
+python cellwalk.py &quot;%DATA%\SFBGS00D.esm&quot; 0106AE51,0106B135 out.json
+rem 4. Names for the base objects in out.json
+SFSearch Names &quot;1FFE18 1F3EAF 23336B&quot; --in Starfield.esm --live</code></pre><details><summary>cellwalk.py (MIT licence)</summary><pre><code>&quot;&quot;&quot;cellwalk.py - find which cell holds a placed object in a Starfield plugin, and list what else is in that cell.
+
+Read-only. It reads one .esm file, unpacks compressed records, and never writes to the game folder.
+
+Usage:
+    python cellwalk.py &lt;plugin.esm&gt; &lt;ref ids&gt; &lt;out.json&gt; [--cells &lt;cell ids&gt;]
+
+    &lt;ref ids&gt;    placed-object FormIDs as stored in the file, comma separated, 8 hex digits
+                 (the first two digits are the master index: in SFBGS00D.esm 00 = Starfield.esm, 01 = its own records)
+    &lt;out.json&gt;   where the full listing goes
+    --cells      also list these cells, by FormID, even if no ref id points to them
+
+Example:
+    python cellwalk.py &quot;C:\\Program Files (x86)\\Steam\\steamapps\\common\\Starfield\\Data\\SFBGS00D.esm&quot; 0106AE51 out.json
+
+For each ref it prints the cell FormID and EditorID and how many objects are in it. out.json holds every object in
+those cells: record type, FormID, base FormID, EditorID if the plugin names it, and position.
+&quot;&quot;&quot;
+import argparse
+import json
+import struct
+import sys
+import zlib
+
+REF_TYPES = (b&quot;REFR&quot;, b&quot;ACHR&quot;)
+CELL_GROUPS = (6, 8, 9, 10)  # GRUP types that belong to one cell: children, persistent, temporary, (exterior) children
+
+
+def subrecords(buf):
+    i, big = 0, None
+    while i + 6 &lt;= len(buf):
+        t = buf[i:i + 4]
+        sz = struct.unpack_from(&quot;&lt;H&quot;, buf, i + 4)[0]
+        i += 6
+        if t == b&quot;XXXX&quot;:  # next subrecord is bigger than 65535 bytes
+            big = struct.unpack_from(&quot;&lt;I&quot;, buf, i)[0]
+            i += sz
+            continue
+        if big is not None:
+            sz, big = big, None
+        yield t, buf[i:i + sz]
+        i += sz
+
+
+def main():
+    ap = argparse.ArgumentParser(description=&quot;Find the cells that hold placed objects in a Starfield plugin.&quot;)
+    ap.add_argument(&quot;plugin&quot;)
+    ap.add_argument(&quot;refs&quot;, help=&quot;comma-separated FormIDs, 8 hex digits as stored in the file&quot;)
+    ap.add_argument(&quot;out&quot;)
+    ap.add_argument(&quot;--cells&quot;, default=&quot;&quot;, help=&quot;comma-separated cell FormIDs to list as well&quot;)
+    a = ap.parse_args()
+
+    try:
+        targets = {int(x, 16) for x in a.refs.split(&quot;,&quot;) if x}
+        extra = [int(x, 16) for x in a.cells.split(&quot;,&quot;) if x]
+    except ValueError:
+        sys.exit(&quot;cellwalk: FormIDs must be hex, for example 0106AE51&quot;)
+    try:
+        data = open(a.plugin, &quot;rb&quot;).read()
+    except OSError as e:
+        sys.exit(f&quot;cellwalk: can&#x27;t read {a.plugin}: {e.strerror}. Check the path to the .esm file.&quot;)
+    if data[:4] != b&quot;TES4&quot;:
+        sys.exit(f&quot;cellwalk: {a.plugin} doesn&#x27;t start with a TES4 header, so it isn&#x27;t a plugin file.&quot;)
+
+    edids, cells, hits, bad = {}, {}, {}, 0
+
+    def walk(start, end, stack):
+        nonlocal bad
+        i = start
+        while i &lt; end:
+            sig = data[i:i + 4]
+            size = struct.unpack_from(&quot;&lt;I&quot;, data, i + 4)[0]
+            if sig == b&quot;GRUP&quot;:
+                label, gtype = struct.unpack_from(&quot;&lt;Ii&quot;, data, i + 8)
+                walk(i + 24, i + size, stack + [label] if gtype in CELL_GROUPS else stack)
+                i += size
+                continue
+            flags, fid = struct.unpack_from(&quot;&lt;II&quot;, data, i + 8)
+            body = data[i + 24:i + 24 + size]
+            if flags &amp; 0x40000:  # compressed: 4-byte unpacked size, then zlib
+                try:
+                    body = zlib.decompress(body[4:])
+                except zlib.error:
+                    bad += 1
+                    body = b&quot;&quot;
+            edid = base = pos = None
+            for t, v in subrecords(body):
+                if t == b&quot;EDID&quot;:
+                    edid = v.rstrip(b&quot;\0&quot;).decode(&quot;utf-8&quot;, &quot;replace&quot;)
+                elif t == b&quot;NAME&quot; and sig in REF_TYPES and len(v) &gt;= 4:
+                    base = struct.unpack_from(&quot;&lt;I&quot;, v)[0]
+                elif t == b&quot;DATA&quot; and sig in REF_TYPES and len(v) &gt;= 12:
+                    pos = [round(x, 1) for x in struct.unpack_from(&quot;&lt;3f&quot;, v)]
+            if edid:
+                edids[fid] = edid
+            if sig in REF_TYPES and stack:
+                cells.setdefault(stack[-1], []).append((sig.decode(), fid, base, edid, pos))
+                if fid in targets:
+                    hits[fid] = stack[-1]
+            i += 24 + size
+
+    walk(24 + struct.unpack_from(&quot;&lt;I&quot;, data, 4)[0], len(data), [])
+    for c in extra:
+        hits[c] = c
+
+    res = {}
+    for t, c in hits.items():
+        refs = cells.get(c, [])
+        res[f&quot;{t:08X}&quot;] = {
+            &quot;cell&quot;: f&quot;{c:08X}&quot;, &quot;cell_edid&quot;: edids.get(c),
+            &quot;refs&quot;: [[s, f&quot;{f:08X}&quot;, f&quot;{b:08X}&quot; if b is not None else None, e or edids.get(b), p]
+                     for s, f, b, e, p in refs],
+        }
+        print(f&quot;{t:08X} in cell {c:08X} {edids.get(c) or &#x27;(no EditorID)&#x27;}: {len(refs)} objects&quot;)
+    with open(a.out, &quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
+        json.dump(res, f, indent=1)
+    missing = sorted(targets - set(hits))
+    if missing:
+        print(&quot;not found:&quot;, &quot;, &quot;.join(f&quot;{m:08X}&quot; for m in missing))
+    if bad:
+        print(f&quot;warning: {bad} compressed records could not be unpacked&quot;)
+    print(f&quot;full listing: {a.out}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    main()
+</code></pre></details></section>
+
+      <footer><p><a href="https://github.com/taosecurity" target="_blank" rel="noopener">Richard Bejtlich</a> of Richard Presents Starfield Essentials made this page: <a href="https://www.youtube.com/@RichardBejtlich" target="_blank" rel="noopener">youtube.com/@RichardBejtlich</a>. I am the developer, and Claude is the programmer.</p><p>SFSearch is by Krawphish37. xEdit is by ElminsterAU and the xEdit team. The page names records and shows no game code. The page layout and cellwalk.py are MIT licensed: <a href="https://github.com/taosecurity/starfield-scene-hunt" target="_blank" rel="noopener">github.com/taosecurity/starfield-scene-hunt</a>.</p><p>This is an unofficial page, not made or endorsed by Bethesda. Starfield is a trademark of ZeniMax Media.</p></footer>
+    </div>
+  </main>
+</div>
+<script>
+// Highlight the menu link for the part of the page in view.
+(function () {
+  var links = [].slice.call(document.querySelectorAll('.rail a[href^="#"]'));
+  var targets = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); }).filter(Boolean);
+  var current = null, queued = false;
+  function update() {
+    queued = false;
+    var id = targets[0].id, bottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+    for (var i = 0; i < targets.length; i++) { if (targets[i].getBoundingClientRect().top <= 100) id = targets[i].id; }
+    if (bottom) id = targets[targets.length - 1].id;
+    if (id === current) return;
+    current = id;
+    links.forEach(function (a) { a.classList.toggle('active', a.getAttribute('href') === '#' + id); });
+  }
+  function queue() { if (!queued) { queued = true; requestAnimationFrame(update); } }
+  window.addEventListener('scroll', queue, { passive: true });
+  window.addEventListener('resize', queue);
+  update();
+})();
+</script>
+
+</body>
+</html>
