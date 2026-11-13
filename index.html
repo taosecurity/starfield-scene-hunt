@@ -44,21 +44,25 @@ a { color: var(--accent); }
 nav.rail { background: var(--side); color: var(--side-text); padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 12px; }
 .rail-inner { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); max-height: calc(100vh - 40px); overflow-y: auto; }
 .rail ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
-.rail a { display: block; padding: 4px 8px; border-radius: 4px; color: var(--side-text); text-decoration: none; font-size: 13.5px; line-height: 1.35; }
+.rail a { display: block; padding: 6px 10px; border-radius: 4px; color: var(--side-text); text-decoration: none; font-size: 14px; line-height: 1.3; }
 .rail a:hover, .rail a:focus-visible { background: var(--side-hover); color: #fff; outline: none; }
 .rail a.active { background: rgba(255,255,255,.12); color: #fff; font-weight: 600; }
 .rail a.edge { box-shadow: inset 4px 0 0 hsl(var(--h) 30% 32%); }
 
-main { padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.col { max-width: 76rem; margin: 0 auto; display: grid; gap: 26px; }
-.intro { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
-.intro h1 { margin: 0; font-size: 34px; line-height: 1.1; letter-spacing: -.01em; text-wrap: balance; }
+main { padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+/* Header: same as the Starfield Version History site (eyebrow, 26px title, lede, bylines, stat tiles). */
+.col { display: grid; gap: 28px; min-width: 0; }
+.intro { display: grid; gap: 12px; min-width: 0; scroll-margin-top: 16px; }
+.intro h1 { margin: 0; font-size: 26px; font-weight: 650; line-height: 1.2; text-wrap: balance; }
 .intro p { margin: 0; color: var(--muted); }
 .eyebrow { font: 12.5px/1.3 var(--mono); color: var(--muted); letter-spacing: .02em; }
 .intro .lede { font-size: 16px; }
 .intro .byline { font-size: 14px; }
-.facts { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.facts b { color: var(--text); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 12px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-top: 5px solid hsl(var(--h) 60% 62%);
+  border-radius: 10px; padding: 12px 16px; display: grid; gap: 2px; }
+.stat b { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text); }
+.stat span { font-size: 13px; color: var(--muted); }
 
 section.s { display: grid; gap: 12px; min-width: 0; scroll-margin-top: 16px; }
 section.s > h3 { margin: 0; font-size: 21px; line-height: 1.3; text-wrap: balance; }
@@ -156,12 +160,12 @@ footer { color: var(--muted); font-size: 12px; text-align: center; border-top: 1
   <main>
     <div class="col">
       <header class="intro" id="top">
-        <p class="eyebrow">Starfield 1.16.244 &middot; Free Lanes update &middot; one search, ten steps &middot; searched 2026-11-13 &middot; page built 2026-11-13 23:50 UTC</p>
+        <p class="eyebrow">Starfield 1.16.244 &middot; Free Lanes update &middot; one search, ten steps &middot; searched 2026-11-13 &middot; page built 2026-11-13 23:52 UTC</p>
         <h1>Finding where a Starfield scene comes from</h1>
         <p class="lede">A player saw a small site with people near a grave and flowers and asked whether it came from the Free Lanes update. This page shows, step by step, how we searched the game's plugin files for it, what each step found, and how you can run the same search for any scene you spot in Starfield.</p>
         <p class="byline">By <a href="https://github.com/taosecurity" target="_blank" rel="noopener">Richard Bejtlich</a>, <a href="https://www.youtube.com/@RichardBejtlich" target="_blank" rel="noopener">Richard Presents Starfield Essentials</a> on YouTube</p>
         <p class="byline">More Starfield tools and references are on the <a href="https://taosecurity.github.io/">Richard Presents Development Hub</a>.</p>
-        <div class="facts"><span>Game files: <b>Steam Starfield 1.16.244, Free Lanes plugin SFBGS00D.esm (102,054,268 bytes)</b></span><span>Best match: <b>SFFLPOI048, a three-grave site</b></span><span>Status: <b>not yet confirmed in game</b></span></div>
+        <div class="stats"><div class="stat" style="--h:160"><b>2</b><span>grave sites that Free Lanes adds (POI048 and POI049)</span></div><div class="stat" style="--h:350"><b>0</b><span>people, kneel markers or flowers placed at those graves</span></div><div class="stat" style="--h:265"><b>7</b><span>candidates checked across Free Lanes and the base game</span></div><div class="stat" style="--h:35"><b>Open</b><span>the best match, POI048, isn't confirmed in game yet</span></div></div>
       </header>
 
 <section class="s cat" id="summary" style="--h:215"><h3>Executive summary</h3><ul><li>Free Lanes adds exactly two grave sites: <code>PIPCMManMade_SFFLPOI048</code> (three graves) and <code>PIPCMManMade_SFFLPOI049</code> (seven graves). These are the only places Free Lanes puts a headstone.</li><li>Both are small procedural sites, so the game drops them at random spots when you land. You can't reach them with a <code>coc</code> command.</li><li>Neither site has people, a kneel marker or flowers in its files. The person kneeling in the player's photo is probably a separate encounter, a companion, the player in photo mode, or something from a mod.</li><li>We ruled out the base game's mourning content: the ID-card delivery mourners, the "Final Thoughts" audio slate, the hunted homesteaders, and the Waggoner Farm cemetery.</li><li>The method works for any scene: search for words, find the objects, list every place that uses them, then look at what sits next to each one.</li></ul><figure class="diagram"><figcaption id="d-method">How we searched: each step narrowed the list of places the scene could come from.</figcaption><div class="scroll flowsvg"><svg viewBox="0 0 1152 246" role="img" aria-labelledby="d-method" xmlns="http://www.w3.org/2000/svg">
