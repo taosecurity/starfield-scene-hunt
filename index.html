@@ -145,6 +145,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; border-top: 1
     <div class="rail-inner">
       <ul>
 <li><a href="#top">Top</a></li>
+<li><a class="edge" style="--h:25" href="#news">What's new</a></li>
 <li><a class="edge" style="--h:215" href="#summary">Executive summary</a></li>
 <li><a class="edge" style="--h:35" href="#question">The question</a></li>
 <li><a class="edge" style="--h:265" href="#tools">What we used</a></li>
@@ -160,7 +161,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; border-top: 1
   <main>
     <div class="col">
       <header class="intro" id="top">
-        <p class="eyebrow">Starfield 1.16.244 &middot; Free Lanes update and one mod &middot; one search, eleven steps &middot; searched 2026-11-13, updated 2026-11-14 &middot; page built 2026-11-14 19:39 UTC</p>
+        <p class="eyebrow">Starfield 1.16.244 &middot; Free Lanes update and one mod &middot; one search, eleven steps &middot; searched 2026-11-13, updated 2026-11-14 &middot; page built 2026-11-20 13:11 UTC</p>
         <h1>Where does this grave scene come from?</h1>
         <p class="lede">A player saw a small site with an NPC near a grave with flowers and wanted to know its origin. The player suspected Free Lanes might have added it. This page records how Claude searched the game files for it on 2026-11-13, then checked the Encounters mod at Richard's request on 2026-11-14, and the player then confirmed the match through Richard.</p>
         <p class="byline">By <a href="https://github.com/taosecurity" target="_blank" rel="noopener">Richard Bejtlich</a>, <a href="https://www.youtube.com/@RichardBejtlich" target="_blank" rel="noopener">Richard Presents Starfield Essentials</a> on YouTube</p>
@@ -168,6 +169,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; border-top: 1
         <div class="stats"><div class="stat" style="--h:160"><b>2</b><span>grave sites that Free Lanes adds (POI048 and POI049)</span></div><div class="stat" style="--h:350"><b>0</b><span>people, kneel markers or flowers placed at those Free Lanes graves</span></div><div class="stat" style="--h:215"><b>1</b><span>mod pack-in, GversGrave, with a grave, flowers and a kneeling NPC</span></div><div class="stat" style="--h:35"><b>Solved</b><span>the player confirmed on 2026-11-14 that the scene comes from that mod</span></div></div>
       </header>
 
+<section class="s cat" id="news" style="--h:25"><h3>What's new</h3><ul><li><strong>2026-11-14.</strong> The case is closed: the player confirmed that the scene comes from the GRiNDTerraverse ProcGen Encounters mod, and the page now shows how it was found.</li><li><strong>2026-11-14.</strong> The cellwalk.py script can write a troubleshooting log with --verbose, and the Run it yourself section explains how to use it.</li><li><strong>2026-11-14.</strong> This page went live on GitHub Pages.</li></ul></section>
 <section class="s cat" id="summary" style="--h:215"><h3>Executive summary</h3><ul><li><b>Solved 2026-11-14: the scene comes from a mod, not Free Lanes. The player confirmed it.</b> <a href="https://www.nexusmods.com/starfield/mods/14148" target="_blank" rel="noopener">GRiNDTerraverse ProcGen Encounters</a> (Nexus 14148, version 3.5) has a pack-in named <code>GversGrave</code>. It places one NPC kneeling and praying beside an upright stone slab, with a flowering plant between them. It also adds mourning and crying markers for the NPC to move between. Its parts stand in the same order as in the photo. The game drops it at random spots on planets.</li><li>Free Lanes adds exactly two grave sites: <code>PIPCMManMade_SFFLPOI048</code> (three graves) and <code>PIPCMManMade_SFFLPOI049</code> (seven graves). These are the only places Free Lanes puts a headstone.</li><li>Both are small procedural sites, so the game drops them at random spots when you land. You can't reach them with a <code>coc</code> command.</li><li>Neither site has people, a kneel marker or flowers in its files, so the kneeling person had to come from somewhere else.</li><li>We ruled out the base game's mourning content: the ID-card delivery mourners, the "Final Thoughts" audio slate, the hunted homesteaders, and the Waggoner Farm cemetery.</li><li>The method works for any scene: search for words, find the objects, list every place that uses them, then look at what sits next to each one.</li></ul><figure class="diagram"><figcaption id="d-method">How we searched: each step narrowed the list of places the scene could come from.</figcaption><div class="scroll flowsvg"><svg viewBox="0 0 1152 246" role="img" aria-labelledby="d-method" xmlns="http://www.w3.org/2000/svg">
 <defs><marker id="ah-d-method" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker></defs>
 <rect x="10" y="10" width="250" height="90" rx="8" class="b b-you"/>
